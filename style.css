@@ -624,6 +624,11 @@ button.text-btn:active {
 .btn-green { background: var(--green); }
 .btn-green:hover { background: #2ecc71; }
 
+/* Resume screen */
+#resume-screen .btn-green  { font-size: 20px; padding: 16px 30px; width: 100%; }
+#resume-screen .btn-black  { font-size: 15px; padding: 11px 20px; opacity: 0.75; align-self: center; }
+#resume-screen .btn-black:hover { opacity: 1; background: #444; }
+
 .winner-red   { color: var(--red); }
 .winner-black { color: var(--black); }
 
@@ -638,16 +643,20 @@ button.text-btn:active {
     border: none;
     color: var(--muted);
     font-size: 16px;
+    font-weight: normal;
     cursor: pointer;
-    position: absolute;
-    top: 20px;
-    left: 20px;
+    display: block;
+    margin: 0 auto 15px auto;
+    padding: 0;
+    box-shadow: none;
     transition: color 0.2s;
 }
 
 .back-link:hover {
+    background: transparent;
     color: var(--bg-dark);
-    text-decoration: underline;
+    transform: none;
+    box-shadow: none;
 }
 
 
@@ -885,9 +894,7 @@ button.text-btn:active {
 .help-text::-webkit-scrollbar-thumb:hover { background: #555; }
 
 
-/* =============================================
-   ANIMATIONS
-   ============================================= */
+
 @keyframes shake {
     0%   { transform: translate(0, 0); }
     25%  { transform: translate(-2px, 1px); }
@@ -909,4 +916,60 @@ button.text-btn:active {
         opacity: 1;
         transform: translate(-50%, -50%) scale(1.05);
     }
+}
+
+
+/* =============================================
+   BG THEME GRID (settings panel)
+   ============================================= */
+.bg-theme-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.bg-theme-btn {
+    padding: 9px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    background: #ecf0f1;
+    color: #2c3e50;
+    border: 2px solid transparent;
+    box-shadow: none;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    text-align: left;
+    cursor: pointer;
+}
+
+.bg-theme-btn:hover {
+    background: #dfe6e9;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+.bg-theme-btn.active-theme {
+    border-color: #27ae60;
+    background: rgba(39, 174, 96, 0.1);
+    color: #1a5c36;
+    font-weight: 700;
+}
+
+/* Sound button while playing */
+#sound-btn.playing {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Prev-move button before first move */
+#prev-move-btn.disabled-btn,
+#prev-move-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
 }

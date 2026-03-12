@@ -140,6 +140,21 @@ class Balatro {
         const aPosition = this.gl.getAttribLocation(this.program, 'aPosition');
         this.gl.enableVertexAttribArray(aPosition);
         this.gl.vertexAttribPointer(aPosition, 2, this.gl.FLOAT, false, 0, 0);
+
+        // Кэшируем uniform locations — дорогой вызов, не нужно делать каждый кадр
+        this.uniforms = {
+            iTime:       this.gl.getUniformLocation(this.program, 'iTime'),
+            iResolution: this.gl.getUniformLocation(this.program, 'iResolution'),
+            color1:      this.gl.getUniformLocation(this.program, 'color1'),
+            color2:      this.gl.getUniformLocation(this.program, 'color2'),
+            color3:      this.gl.getUniformLocation(this.program, 'color3'),
+            contrast:    this.gl.getUniformLocation(this.program, 'contrast'),
+            lighting:    this.gl.getUniformLocation(this.program, 'lighting'),
+            spinAmount:  this.gl.getUniformLocation(this.program, 'spinAmount'),
+            pixelFilter: this.gl.getUniformLocation(this.program, 'pixelFilter'),
+            spinRotation:this.gl.getUniformLocation(this.program, 'spinRotation'),
+            spinSpeed:   this.gl.getUniformLocation(this.program, 'spinSpeed'),
+        };
     }
 
     resize() {
@@ -158,47 +173,242 @@ class Balatro {
         this.lastFrameTime = now;
 
         const time = (now - this.startTime) / 1000;
+        const u = this.uniforms;
         this.gl.useProgram(this.program);
 
-        this.gl.uniform1f(this.gl.getUniformLocation(this.program, 'iTime'), time);
-        this.gl.uniform2f(this.gl.getUniformLocation(this.program, 'iResolution'), this.canvas.width, this.canvas.height);
-        this.gl.uniform3fv(this.gl.getUniformLocation(this.program, 'color1'), this.options.color1);
-        this.gl.uniform3fv(this.gl.getUniformLocation(this.program, 'color2'), this.options.color2);
-        this.gl.uniform3fv(this.gl.getUniformLocation(this.program, 'color3'), this.options.color3);
-        this.gl.uniform1f(this.gl.getUniformLocation(this.program, 'contrast'), this.options.contrast);
-        this.gl.uniform1f(this.gl.getUniformLocation(this.program, 'lighting'), this.options.lighting);
-        this.gl.uniform1f(this.gl.getUniformLocation(this.program, 'spinAmount'), this.options.spinAmount);
-        this.gl.uniform1f(this.gl.getUniformLocation(this.program, 'pixelFilter'), this.options.pixelFilter);
-        this.gl.uniform1f(this.gl.getUniformLocation(this.program, 'spinRotation'), this.options.spinRotation);
-        this.gl.uniform1f(this.gl.getUniformLocation(this.program, 'spinSpeed'), this.options.spinSpeed);
+        this.gl.uniform1f(u.iTime,        time);
+        this.gl.uniform2f(u.iResolution,  this.canvas.width, this.canvas.height);
+        this.gl.uniform3fv(u.color1,      this.options.color1);
+        this.gl.uniform3fv(u.color2,      this.options.color2);
+        this.gl.uniform3fv(u.color3,      this.options.color3);
+        this.gl.uniform1f(u.contrast,     this.options.contrast);
+        this.gl.uniform1f(u.lighting,     this.options.lighting);
+        this.gl.uniform1f(u.spinAmount,   this.options.spinAmount);
+        this.gl.uniform1f(u.pixelFilter,  this.options.pixelFilter);
+        this.gl.uniform1f(u.spinRotation, this.options.spinRotation);
+        this.gl.uniform1f(u.spinSpeed,    this.options.spinSpeed);
 
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
         requestAnimationFrame(() => this.animate());
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    balatroInstance = new Balatro('balatro-canvas', {
-        color1: [0.067, 0.075, 0.231], // #11133b
-        color2: [0.0, 0.42, 0.706],    // #006BB4
-        color3: [0.086, 0.137, 0.145], // #162325
-        spinRotation: -10,
-        spinSpeed: 4,
-        contrast: 1.0,
-        lighting: 0.15,
-        spinAmount: 0.1,
-        pixelFilter: 2000
+// =============================================
+// НАСТРОЙКИ — LOCALSTORAGE
+// =============================================
+
+const SETTINGS_KEY = 'xiangqi_settings';
+const GAME_KEY     = 'xiangqi_game';
+
+function saveSettings() {
+    const settings = {
+        bgTheme:        currentBgTheme,
+        balatroEnabled: balatroInstance ? balatroInstance.running : true,
+        pieceStyle:     currentStyle,
+        volume:         Math.round(globalVolume * 100),
+    };
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+}
+
+function loadSettings() {
+    try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
+
+// --- Сохранение / загрузка / очистка состояния партии ---
+
+function saveGameState() {
+    if (!isGameActive) return;
+    const state = {
+        boardState,
+        capturedRed,
+        capturedBlack,
+        turn,
+        playerColor,
+        gameMode,
+        difficulty,
+        moveHistoryText,
+        boardStatesHistory,
+        pieceIdCounter,
+    };
+    try { localStorage.setItem(GAME_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function loadGameState() {
+    try {
+        const raw = localStorage.getItem(GAME_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
+
+function clearGameState() {
+    try { localStorage.removeItem(GAME_KEY); } catch (e) {}
+}
+
+// --- Новая партия без перезагрузки страницы ---
+
+function newGame() {
+    // Останавливаем любой текущий ИИ-ход (если был запущен)
+    isGameActive = false;
+    clearGameState();
+
+    // Сбрасываем DOM фигур
+    pieceElementsMap.forEach(el => el.remove());
+    pieceElementsMap.clear();
+
+    // Сбрасываем все игровые переменные
+    boardState       = JSON.parse(JSON.stringify(initialBoard));
+    capturedRed      = [];
+    capturedBlack    = [];
+    selected         = null;
+    turn             = 'red';
+    validMoves       = [];
+    moveHistoryText  = [];
+    boardStatesHistory = [];
+    isShowingPrevious  = false;
+    viewingHistoryIndex = -1;
+
+    // Прячем экран конца игры, показываем стартовый с выбором режима
+    document.getElementById('game-over-screen').style.display = 'none';
+    document.getElementById('start-screen').style.display = 'flex';
+    document.getElementById('resume-screen').style.display = 'none';
+    document.getElementById('mode-selection').style.display = 'block';
+    document.getElementById('solo-setup').style.display = 'none';
+
+    // Очищаем трофеи и историю
+    document.getElementById('captured-top').innerHTML    = '';
+    document.getElementById('captured-bottom').innerHTML = '';
+    updateHistoryUI();
+}
+
+// =============================================
+// ТЕМЫ ФОНА
+// =============================================
+
+let currentBgTheme = 0;
+
+const BALATRO_THEMES = [
+    { name: 'Синий',     emoji: '🔵', color1: [0.067, 0.075, 0.231], color2: [0.0,  0.42, 0.706], color3: [0.086, 0.137, 0.145], spinRotation: -10, spinSpeed: 4, contrast: 1.0,  lighting: 0.15,  spinAmount: 0.10, pixelFilter: 2000 },
+    { name: 'Пурпурный', emoji: '🟣', color1: [0.12,  0.04,  0.25],  color2: [0.45, 0.05, 0.55],  color3: [0.08,  0.03,  0.18],  spinRotation:  5,  spinSpeed: 5, contrast: 1.05, lighting: 0.12,  spinAmount: 0.14, pixelFilter: 2000 },
+    { name: 'Зелёный',   emoji: '🟢', color1: [0.03,  0.15,  0.10],  color2: [0.02, 0.50, 0.28],  color3: [0.05,  0.12,  0.07],  spinRotation: 15,  spinSpeed: 3, contrast: 1.1,  lighting: 0.10,  spinAmount: 0.08, pixelFilter: 2000 },
+    { name: 'Красный',   emoji: '🔴', color1: [0.20,  0.04,  0.04],  color2: [0.55, 0.05, 0.05],  color3: [0.12,  0.03,  0.03],  spinRotation: -5,  spinSpeed: 4, contrast: 1.0,  lighting: 0.13,  spinAmount: 0.12, pixelFilter: 2000 },
+    { name: 'Чёрный',    emoji: '⚫', color1: [0.05,  0.05,  0.05],  color2: [0.15, 0.15, 0.15],  color3: [0.02,  0.02,  0.02],  spinRotation:  8,  spinSpeed: 3, contrast: 1.2,  lighting: 0.05,  spinAmount: 0.07, pixelFilter: 2000 },
+    { name: 'Золотой',   emoji: '🟡', color1: [0.18,  0.14,  0.01],  color2: [0.55, 0.40, 0.00],  color3: [0.10,  0.08,  0.02],  spinRotation: -12, spinSpeed: 5, contrast: 1.15, lighting: 0.20,  spinAmount: 0.09, pixelFilter: 2000 },
+];
+
+function applyBgTheme(themeIndex) {
+    currentBgTheme = themeIndex;
+    const theme = BALATRO_THEMES[themeIndex];
+    if (balatroInstance) {
+        balatroInstance.options = { ...balatroInstance.options, ...theme };
+    } else {
+        balatroInstance = new Balatro('balatro-canvas', { ...theme });
+    }
+    document.querySelectorAll('.bg-theme-btn').forEach((btn, i) => {
+        btn.classList.toggle('active-theme', i === themeIndex);
     });
+    saveSettings();
+}
 
-    const isEnabled = localStorage.getItem('balatro-enabled') !== 'false';
-    const toggle = document.getElementById('balatro-toggle');
-    if (toggle) toggle.checked = isEnabled;
-});
-
-let balatroInstance = null;
 function toggleBalatro(enabled) {
     if (balatroInstance) balatroInstance.toggle(enabled);
+    saveSettings();
 }
+
+// =============================================
+// ИНИЦИАЛИЗАЦИЯ
+// =============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    const saved = loadSettings();
+
+    // Фон — тема
+    const themeIdx = (saved && saved.bgTheme !== undefined) ? saved.bgTheme : 0;
+    const theme = BALATRO_THEMES[themeIdx];
+    currentBgTheme = themeIdx;
+    balatroInstance = new Balatro('balatro-canvas', { ...theme });
+
+    // Переключатель анимации (игнорируем старый localStorage ключ balatro-enabled)
+    const isEnabled = saved ? (saved.balatroEnabled !== false) : true;
+    const toggle = document.getElementById('balatro-toggle');
+    if (toggle) toggle.checked = isEnabled;
+    if (!isEnabled) balatroInstance.toggle(false);
+
+    // Стиль фигур
+    if (saved && saved.pieceStyle) {
+        currentStyle = saved.pieceStyle;
+        const radio = document.querySelector(`input[name="piece-style"][value="${currentStyle}"]`);
+        if (radio) radio.checked = true;
+        updateHelpSymbols();
+    }
+
+    // Громкость
+    if (saved && saved.volume !== undefined) {
+        globalVolume = saved.volume / 100;
+        const volSlider = document.getElementById('volume-slider');
+        const volVal = document.getElementById('volume-val');
+        if (volSlider) volSlider.value = saved.volume;
+        if (volVal) volVal.innerText = saved.volume + '%';
+    }
+
+    // Подсветить активную тему
+    document.querySelectorAll('.bg-theme-btn').forEach((btn, i) => {
+        btn.classList.toggle('active-theme', i === themeIdx);
+    });
+
+    // Восстановление пользовательского фона
+    try {
+        const savedBg = localStorage.getItem('xiangqi_bg');
+        if (savedBg) document.getElementById('bg-layer').style.backgroundImage = `url('${savedBg}')`;
+    } catch (e) {}
+
+    // Показываем нужный экран при старте
+    const savedGame = loadGameState();
+    if (savedGame) {
+        // Есть сохранение — показываем экран выбора
+        const modeLabel = savedGame.gameMode === 'hotseat' ? 'Два игрока' : `Против ИИ (сложность ${savedGame.difficulty})`;
+        const moves = savedGame.moveHistoryText ? savedGame.moveHistoryText.length : 0;
+        document.getElementById('resume-desc').innerText =
+            `${modeLabel} · ${moves} ход${moves === 1 ? '' : moves < 5 ? 'а' : 'ов'}`;
+        document.getElementById('resume-screen').style.display = 'block';
+        document.getElementById('mode-selection').style.display = 'none';
+        document.getElementById('solo-setup').style.display = 'none';
+    } else {
+        // Нет сохранения — сразу выбор режима
+        document.getElementById('resume-screen').style.display = 'none';
+        document.getElementById('mode-selection').style.display = 'block';
+    }
+});
+
+function resumeGame() {
+    const savedGame = loadGameState();
+    if (!savedGame) { showModeSelection(); return; }
+
+    boardState          = savedGame.boardState;
+    capturedRed         = savedGame.capturedRed;
+    capturedBlack       = savedGame.capturedBlack;
+    turn                = savedGame.turn;
+    playerColor         = savedGame.playerColor;
+    gameMode            = savedGame.gameMode;
+    difficulty          = savedGame.difficulty;
+    moveHistoryText     = savedGame.moveHistoryText;
+    boardStatesHistory  = savedGame.boardStatesHistory;
+    pieceIdCounter      = savedGame.pieceIdCounter;
+    isGameActive        = true;
+    viewingHistoryIndex = -1;
+
+    document.getElementById('start-screen').style.display = 'none';
+    updateHistoryUI();
+    updatePrevMoveBtn();
+    render();
+
+    if (gameMode === 'vs-bot' && turn !== playerColor) {
+        setTimeout(makeAiMove, 800);
+    }
+}
+
 
 const PIECE_TEXT = {
     'K': '帥', 'A': '仕', 'B': '相', 'N': '傌', 'R': '俥', 'C': '炮', 'P': '兵',
@@ -278,6 +488,8 @@ function startGame(color) {
     }));
     boardStatesHistory.push(cloneBoard(boardState)); // Save initial state (индекс 0)
     updateHistoryUI();
+    updatePrevMoveBtn();
+    saveGameState();
     render();
     if (gameMode === 'vs-bot' && turn !== playerColor) setTimeout(makeAiMove, 800);
 }
@@ -294,6 +506,8 @@ function selectMode(mode) {
 }
 
 function showModeSelection() {
+    clearGameState(); // Сбрасываем сохранение, чтобы «Начать заново» не предлагало старую партию
+    document.getElementById('resume-screen').style.display = 'none';
     document.getElementById('mode-selection').style.display = 'block';
     document.getElementById('solo-setup').style.display = 'none';
 }
@@ -314,8 +528,9 @@ function toggleGameMode() {
 function changeStyle(newStyle) {
     currentStyle = newStyle;
     updateHelpSymbols();
-    updateHistoryUI(); // Обновляем историю, чтобы сменились иконки
+    updateHistoryUI();
     render();
+    saveSettings();
 }
 
 function updateHelpSymbols() {
@@ -814,7 +1029,20 @@ function getMoveString(move) {
     return `${pieceName} ${move.fromCol}${move.moveDir}${move.isCapture ? ' x' : ''}`;
 }
 
+function updatePrevMoveBtn() {
+    const btn = document.getElementById('prev-move-btn');
+    if (!btn) return;
+    if (boardStatesHistory.length < 2) {
+        btn.disabled = true;
+        btn.classList.add('disabled-btn');
+    } else {
+        btn.disabled = false;
+        btn.classList.remove('disabled-btn');
+    }
+}
+
 function updateHistoryUI() {
+    updatePrevMoveBtn();
     const list = document.getElementById('history-list');
     const header = document.getElementById('history-header');
     const footer = document.getElementById('history-footer');
@@ -1037,6 +1265,7 @@ function makeMove(fr, fc, tr, tc) {
     boardStatesHistory.push(cloneBoard(boardState)); // Сохраняем состояние после хода
 
     selected = null; validMoves = []; turn = turn === 'red' ? 'black' : 'red';
+    saveGameState();
     render();
     if (isGameOver()) {
         playGameOverSound();
@@ -1081,6 +1310,7 @@ function showGameOver(msg, winner) {
     document.getElementById('game-over-msg').innerText = msg;
     document.getElementById('game-over-screen').style.display = 'flex';
     isGameActive = false;
+    clearGameState();
 }
 
 function openSettings() {
@@ -1098,7 +1328,12 @@ function handleBackgroundUpload(event) {
     if (file) {
         const reader = new FileReader();
         reader.onload = function (e) {
-            document.getElementById('bg-layer').style.backgroundImage = `url('${e.target.result}')`;
+            const dataUrl = e.target.result;
+            document.getElementById('bg-layer').style.backgroundImage = `url('${dataUrl}')`;
+            try { localStorage.setItem('xiangqi_bg', dataUrl); } catch (err) {
+                // Файл слишком большой для localStorage — просто применяем без сохранения
+                console.warn('Фон не сохранён: файл слишком большой', err);
+            }
         };
         reader.readAsDataURL(file);
     }
@@ -1108,17 +1343,23 @@ function clearBackground() {
     document.getElementById('bg-layer').style.backgroundImage = 'none';
     const uploadInput = document.getElementById('bg-upload');
     if (uploadInput) uploadInput.value = '';
+    try { localStorage.removeItem('xiangqi_bg'); } catch (e) {}
 }
 
 function updateVolume(val) {
     globalVolume = val / 100;
     document.getElementById('volume-val').innerText = val + '%';
+    saveSettings();
 }
 
 function playYooSound() {
+    const btn = document.getElementById('sound-btn');
     const audio = new Audio('https://www.myinstants.com/media/sounds/yoooo.mp3');
     audio.volume = globalVolume;
+    if (btn) { btn.disabled = true; btn.classList.add('playing'); }
     audio.play();
+    audio.onended = () => { if (btn) { btn.disabled = false; btn.classList.remove('playing'); } };
+    audio.onerror = () => { if (btn) { btn.disabled = false; btn.classList.remove('playing'); } };
 }
 
 function playMoveSound() {
@@ -1158,90 +1399,95 @@ updateHelpSymbols();
 render();
 
 // --- ЭФФЕКТ КЛИКА (CLICK SPARK) ---
-// Реализация компонента ClickSpark для Vanilla JS
 class ClickSpark {
     constructor() {
         this.canvas = document.createElement('canvas');
         this.ctx = this.canvas.getContext('2d');
         this.sparks = [];
+        this.animating = false; // Не крутим RAF когда нечего рисовать
         this.config = {
-            sparkColor: '#ffffff',
             sparkSize: 10,
             sparkRadius: 15,
             sparkCount: 8,
             duration: 400,
-            extraScale: 1
         };
-
+        // Предвычисляем cos/sin для N лучей — не пересчитываем каждый кадр
+        this.angles = Array.from({ length: this.config.sparkCount }, (_, i) => ({
+            cos: Math.cos((i * 2 * Math.PI) / this.config.sparkCount),
+            sin: Math.sin((i * 2 * Math.PI) / this.config.sparkCount),
+        }));
+        this.colors = ['#212121', '#d32f2f', '#3498db'];
         this.init();
     }
 
     init() {
-        this.canvas.style.position = 'fixed';
-        this.canvas.style.top = '0';
-        this.canvas.style.left = '0';
-        this.canvas.style.width = '100%';
-        this.canvas.style.height = '100%';
-        this.canvas.style.pointerEvents = 'none';
-        this.canvas.style.zIndex = '10000';
+        Object.assign(this.canvas.style, {
+            position: 'fixed', top: '0', left: '0',
+            width: '100%', height: '100%',
+            pointerEvents: 'none', zIndex: '10000',
+        });
         document.body.appendChild(this.canvas);
-
         this.handleResize();
         window.addEventListener('resize', () => this.handleResize());
         window.addEventListener('mousedown', (e) => this.addSpark(e.clientX, e.clientY));
-
-        this.animate();
     }
 
     handleResize() {
-        this.canvas.width = window.innerWidth;
+        this.canvas.width  = window.innerWidth;
         this.canvas.height = window.innerHeight;
     }
 
     addSpark(x, y) {
-        const colors = ['#212121', '#d32f2f', '#3498db']; // Чёрный, Красный, Синий
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
         this.sparks.push({
             x, y,
             startTime: performance.now(),
-            color: randomColor
+            color: this.colors[Math.floor(Math.random() * this.colors.length)],
         });
+        if (!this.animating) {
+            this.animating = true;
+            requestAnimationFrame(() => this.animate());
+        }
     }
 
     animate() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         const now = performance.now();
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.sparks = this.sparks.filter(spark => {
             const elapsed = now - spark.startTime;
-            if (elapsed > this.config.duration) return false;
+            if (elapsed >= this.config.duration) return false;
 
-            const progress = elapsed / this.config.duration;
-            const easedProgress = 1 - Math.pow(1 - progress, 3); // cubic ease-out
+            const progress     = elapsed / this.config.duration;
+            const easedProgress = 1 - Math.pow(1 - progress, 3);
+            const r1 = this.config.sparkRadius * easedProgress;
+            const r2 = r1 + this.config.sparkSize * (1 - progress);
 
-            this.ctx.save();
-            this.ctx.translate(spark.x, spark.y);
-            this.ctx.strokeStyle = spark.color;
-            this.ctx.lineWidth = 2;
-            this.ctx.globalAlpha = 1 - progress;
+            ctx.save();
+            ctx.translate(spark.x, spark.y);
+            ctx.strokeStyle  = spark.color;
+            ctx.lineWidth    = 2;
+            ctx.globalAlpha  = 1 - progress;
 
-            for (let i = 0; i < this.config.sparkCount; i++) {
-                const angle = (i * 2 * Math.PI) / this.config.sparkCount;
-                const r1 = (this.config.sparkRadius * easedProgress) * this.config.extraScale;
-                const r2 = r1 + (this.config.sparkSize * (1 - progress));
-
-                this.ctx.beginPath();
-                this.ctx.moveTo(Math.cos(angle) * r1, Math.sin(angle) * r1);
-                this.ctx.lineTo(Math.cos(angle) * r2, Math.sin(angle) * r2);
-                this.ctx.stroke();
+            // Один beginPath + все линии + один stroke = 1 draw call вместо 8
+            ctx.beginPath();
+            for (const { cos, sin } of this.angles) {
+                ctx.moveTo(cos * r1, sin * r1);
+                ctx.lineTo(cos * r2, sin * r2);
             }
-            this.ctx.restore();
+            ctx.stroke();
+            ctx.restore();
             return true;
         });
 
-        requestAnimationFrame(() => this.animate());
+        if (this.sparks.length > 0) {
+            requestAnimationFrame(() => this.animate());
+        } else {
+            // Искр нет — останавливаем цикл и очищаем canvas
+            ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.animating = false;
+        }
     }
 }
 
-// Инициализация эффекта
 new ClickSpark();
