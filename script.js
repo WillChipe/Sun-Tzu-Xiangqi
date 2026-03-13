@@ -23,24 +23,22 @@ class Balatro {
         this.startTime = Date.now();
         this.initShaders();
         this.initBuffers();
-        this.running = localStorage.getItem('balatro-enabled') !== 'false';
-        if (this.running) {
-            this.animate();
-        } else {
-            this.canvas.style.display = 'none';
-        }
+        // Всегда запускаем анимацию; DOMContentLoaded управляет начальным состоянием
+        this.running = true;
+        this.animate();
 
         window.addEventListener('resize', () => this.resize());
         this.resize();
     }
 
     toggle(enabled) {
+        const wasRunning = this.running;
         this.running = enabled;
-        localStorage.setItem('balatro-enabled', enabled);
         if (enabled) {
             this.canvas.style.display = 'block';
             this.resize();
-            this.animate();
+            // Запускаем новый RAF-цикл только если до этого анимация была остановлена
+            if (!wasRunning) this.animate();
         } else {
             this.canvas.style.display = 'none';
         }
@@ -252,6 +250,7 @@ function clearGameState() {
 function newGame() {
     // Останавливаем любой текущий ИИ-ход (если был запущен)
     isGameActive = false;
+    isBoardVisible = false;
     clearGameState();
 
     // Сбрасываем DOM фигур
@@ -298,6 +297,18 @@ const BALATRO_THEMES = [
     { name: 'Золотой',   emoji: '🟡', color1: [0.18,  0.14,  0.01],  color2: [0.55, 0.40, 0.00],  color3: [0.10,  0.08,  0.02],  spinRotation: -12, spinSpeed: 5, contrast: 1.15, lighting: 0.20,  spinAmount: 0.09, pixelFilter: 2000 },
 ];
 
+function updateBodyBackground() {
+    const theme = BALATRO_THEMES[currentBgTheme];
+    const balatroOn = balatroInstance ? balatroInstance.running : true;
+    if (balatroOn) {
+        document.body.style.backgroundColor = '';  // вернуть CSS-переменную --bg-dark
+    } else {
+        // Берём color1 темы (самый тёмный цвет) и конвертируем в hex
+        const [r, g, b] = theme.color1.map(v => Math.round(v * 255));
+        document.body.style.backgroundColor = `rgb(${r},${g},${b})`;
+    }
+}
+
 function applyBgTheme(themeIndex) {
     currentBgTheme = themeIndex;
     const theme = BALATRO_THEMES[themeIndex];
@@ -309,11 +320,13 @@ function applyBgTheme(themeIndex) {
     document.querySelectorAll('.bg-theme-btn').forEach((btn, i) => {
         btn.classList.toggle('active-theme', i === themeIndex);
     });
+    updateBodyBackground();
     saveSettings();
 }
 
 function toggleBalatro(enabled) {
     if (balatroInstance) balatroInstance.toggle(enabled);
+    updateBodyBackground();
     saveSettings();
 }
 
@@ -322,6 +335,9 @@ function toggleBalatro(enabled) {
 // =============================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Удаляем старый ключ balatro-enabled — настройки теперь хранятся в xiangqi_settings
+    try { localStorage.removeItem('balatro-enabled'); } catch (e) {}
+
     const saved = loadSettings();
 
     // Фон — тема
@@ -335,6 +351,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('balatro-toggle');
     if (toggle) toggle.checked = isEnabled;
     if (!isEnabled) balatroInstance.toggle(false);
+
+    // Установить фон body в зависимости от состояния Balatro
+    updateBodyBackground();
 
     // Стиль фигур
     if (saved && saved.pieceStyle) {
@@ -423,6 +442,35 @@ const PIECE_ICONS = {
     'k': '👑', 'a': '🛡️', 'b': '🐘', 'n': '🐴', 'r': '🏰', 'c': '💣', 'p': '💂'
 };
 
+// Twemoji через jsDelivr CDN — одинаковый рендер на всех устройствах
+const TWEMOJI_BASE = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/';
+const PIECE_TWEMOJI = {
+    'K': '1f451', 'A': '1f6e1', 'B': '1f418', 'N': '1f434', 'R': '1f3f0', 'C': '1f4a3', 'P': '1f482',
+    'k': '1f451', 'a': '1f6e1', 'b': '1f418', 'n': '1f434', 'r': '1f3f0', 'c': '1f4a3', 'p': '1f482'
+};
+
+function setPieceContent(el, pieceType) {
+    if (currentStyle === 'kanji') {
+        el.innerText = PIECE_TEXT[pieceType];
+        el.style.backgroundImage = '';
+        el.style.filter = '';
+        el.style.fontSize = '';
+    } else if (currentStyle === 'euro') {
+        el.innerText = PIECE_EURO[pieceType];
+        el.style.backgroundImage = '';
+        el.style.filter = '';
+        el.style.fontSize = '';
+    } else {
+        // icons — Twemoji через <img> внутри фишки, фильтр только на картинку
+        el.innerHTML = `<img src="${TWEMOJI_BASE}${PIECE_TWEMOJI[pieceType]}.svg" style="width:65%;height:65%;pointer-events:none;filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.9)) drop-shadow(-1px -1px 0 rgba(0,0,0,0.9))   drop-shadow(1px -1px 0 rgba(0,0,0,0.9)) drop-shadow(-1px 1px 0 rgba(0,0,0,0.9));">`;
+        el.style.backgroundImage = '';
+        el.style.backgroundSize = '';
+        el.style.backgroundRepeat = '';
+        el.style.backgroundPosition = '';
+        el.style.filter = '';
+    }
+}
+
 const initialBoard = [
     ['r', 'n', 'b', 'a', 'k', 'a', 'b', 'n', 'r'],
     ['.', '.', '.', '.', '.', '.', '.', '.', '.'],
@@ -446,6 +494,7 @@ let validMoves = [];
 let playerColor = 'red';
 let currentStyle = 'icons';
 let isGameActive = false;
+let isBoardVisible = false; // true после dismissGameOver — доска видна, ходы заблокированы
 let difficulty = 1;
 let gameMode = 'vs-bot';
 let globalVolume = 1.0;
@@ -534,11 +583,19 @@ function changeStyle(newStyle) {
 }
 
 function updateHelpSymbols() {
-    const dict = currentStyle === 'kanji' ? PIECE_TEXT : (currentStyle === 'euro' ? PIECE_EURO : PIECE_ICONS);
-    const isKanji = currentStyle === 'kanji';
     document.querySelectorAll('.help-sym').forEach(el => {
-        el.innerText = dict[el.getAttribute('data-p')];
-        el.style.display = isKanji ? 'none' : 'inline';
+        const p = el.getAttribute('data-p');
+        if (currentStyle === 'kanji') {
+            el.innerHTML = '';
+            el.style.display = 'none';
+        } else if (currentStyle === 'euro') {
+            el.innerHTML = PIECE_EURO[p];
+            el.style.display = 'inline';
+        } else {
+            // Twemoji — маленькая inline картинка
+            el.innerHTML = `<img src="${TWEMOJI_BASE}${PIECE_TWEMOJI[p]}.svg" style="width:1.2em;height:1.2em;vertical-align:middle;">`;
+            el.style.display = 'inline';
+        }
     });
 }
 
@@ -1024,8 +1081,14 @@ function recordMove(fr, fc, tr, tc, pieceType, targetType) {
 }
 
 function getMoveString(move) {
-    const dict = currentStyle === 'kanji' ? PIECE_TEXT : (currentStyle === 'euro' ? PIECE_EURO : PIECE_ICONS);
-    const pieceName = dict[move.type];
+    let pieceName;
+    if (currentStyle === 'kanji') {
+        pieceName = PIECE_TEXT[move.type];
+    } else if (currentStyle === 'euro') {
+        pieceName = PIECE_EURO[move.type];
+    } else {
+        pieceName = `<img src="${TWEMOJI_BASE}${PIECE_TWEMOJI[move.type]}.svg" style="width:1em;height:1em;vertical-align:middle;">`;
+    }
     return `${pieceName} ${move.fromCol}${move.moveDir}${move.isCapture ? ' x' : ''}`;
 }
 
@@ -1116,8 +1179,15 @@ function hidePreviousMove() {
 
 // --- ОТРИСОВКА ---
 
+function getCellSize() {
+    // boardEl.clientWidth = content-ширина = cell-size * 8 (без бордюра)
+    // Это единственный надёжный способ: CSS custom property с clamp() возвращает
+    // сырую строку из getComputedStyle, parseFloat которой даёт NaN.
+    return boardEl.clientWidth / 8;
+}
+
 function render() {
-    if (!isGameActive) return;
+    if (!isGameActive && !isBoardVisible) return;
 
     const isViewingHistory = viewingHistoryIndex !== -1;
 
@@ -1150,6 +1220,7 @@ function render() {
 
     // Обновляем или создаем элементы фигур
     const currentPieceIds = new Set();
+    const cellSize = getCellSize();
     for (let r = 0; r < 10; r++) {
         for (let c = 0; c < 9; c++) {
             const pObj = displayBoard[r][c];
@@ -1165,8 +1236,10 @@ function render() {
                 el.className = `piece ${pObj.type === pObj.type.toUpperCase() ? 'red' : 'black'}`;
                 if (selected && selected.r === r && selected.c === c && !isShowingPrevious && !isViewingHistory) el.classList.add('selected');
                 else el.classList.remove('selected');
-                el.innerText = (currentStyle === 'kanji') ? PIECE_TEXT[pObj.type] : (currentStyle === 'euro' ? PIECE_EURO[pObj.type] : PIECE_ICONS[pObj.type]);
-                el.style.left = `${c * 60}px`; el.style.top = `${r * 60}px`;
+                el.innerText = '';
+                el.style.backgroundImage = '';
+                setPieceContent(el, pObj.type);
+                el.style.left = `${c * cellSize}px`; el.style.top = `${r * cellSize}px`;
                 el.onclick = (e) => { e.stopPropagation(); handleSelect(r, c); };
             }
         }
@@ -1185,28 +1258,66 @@ function render() {
         if (isViewingHistory || isShowingPrevious) return;
 
         const d = document.createElement('div'); d.className = 'move-dot';
-        d.style.left = `${m[1] * 60}px`; d.style.top = `${m[0] * 60}px`;
+        d.style.left = `${m[1] * cellSize}px`; d.style.top = `${m[0] * cellSize}px`;
         d.style.animationDelay = `${index * 0.02}s`;
         d.onclick = () => { makeMove(selected.r, selected.c, m[0], m[1]); };
         piecesLayer.appendChild(d);
     });
 
-    renderCaptured();
+    renderCaptured(displayBoard);
 }
 
-function renderCaptured() {
+function renderCaptured(displayBoard) {
     const topZone = document.getElementById('captured-top');
     const bottomZone = document.getElementById('captured-bottom');
     topZone.innerHTML = ''; bottomZone.innerHTML = '';
 
-    capturedRed.forEach(p => topZone.appendChild(createMiniPiece(p)));
-    capturedBlack.forEach(p => bottomZone.appendChild(createMiniPiece(p)));
+    // Если просматриваем историю или прошлый ход — вычисляем захваченных из снимка доски.
+    // Иначе используем актуальные массивы (быстрее, без пересчёта).
+    if (displayBoard && (isShowingPrevious || viewingHistoryIndex !== -1)) {
+        const captured = getCapturedFromBoard(displayBoard);
+        captured.red.forEach(p => topZone.appendChild(createMiniPiece(p)));
+        captured.black.forEach(p => bottomZone.appendChild(createMiniPiece(p)));
+    } else {
+        capturedRed.forEach(p => topZone.appendChild(createMiniPiece(p)));
+        capturedBlack.forEach(p => bottomZone.appendChild(createMiniPiece(p)));
+    }
+}
+
+// Вычисляет захваченные фигуры сравнивая снимок с начальной позицией
+function getCapturedFromBoard(board) {
+    // Считаем фигуры на доске
+    const onBoard = {};
+    for (let r = 0; r < 10; r++)
+        for (let c = 0; c < 9; c++) {
+            const cell = board[r][c];
+            if (cell !== '.') onBoard[cell.type] = (onBoard[cell.type] || 0) + 1;
+        }
+
+    // Считаем фигуры в начальной позиции
+    const initial = {};
+    for (let r = 0; r < 10; r++)
+        for (let c = 0; c < 9; c++) {
+            const cell = initialBoard[r][c];
+            if (cell !== '.') initial[cell] = (initial[cell] || 0) + 1;
+        }
+
+    // Разница = захваченные
+    const red = [], black = [];
+    for (const type in initial) {
+        const missing = (initial[type] || 0) - (onBoard[type] || 0);
+        for (let i = 0; i < missing; i++) {
+            if (type === type.toUpperCase()) red.push(type);
+            else black.push(type);
+        }
+    }
+    return { red, black };
 }
 
 function createMiniPiece(p) {
     const el = document.createElement('div');
     el.className = `piece mini ${p === p.toUpperCase() ? 'red' : 'black'}`;
-    el.innerText = (currentStyle === 'kanji') ? PIECE_TEXT[p] : (currentStyle === 'euro' ? PIECE_EURO[p] : PIECE_ICONS[p]);
+    setPieceContent(el, p);
     return el;
 }
 
@@ -1246,9 +1357,6 @@ function makeMove(fr, fc, tr, tc) {
     const sourceObj = boardState[fr][fc];
     const targetObj = boardState[tr][tc];
 
-    // Записываем ход в историю текстом
-    recordMove(fr, fc, tr, tc, sourceObj.type, targetObj !== '.' ? targetObj.type : '.');
-
     if (targetObj !== '.') {
         playCaptureSound();
         triggerShake();
@@ -1263,6 +1371,9 @@ function makeMove(fr, fc, tr, tc) {
     boardState[fr][fc] = '.';
 
     boardStatesHistory.push(cloneBoard(boardState)); // Сохраняем состояние после хода
+
+    // Записываем ход в историю текстом — ПОСЛЕ push, чтобы updatePrevMoveBtn видел актуальную длину
+    recordMove(fr, fc, tr, tc, sourceObj.type, targetObj !== '.' ? targetObj.type : '.');
 
     selected = null; validMoves = []; turn = turn === 'red' ? 'black' : 'red';
     saveGameState();
@@ -1299,6 +1410,28 @@ function triggerShake() {
     setTimeout(() => boardEl.classList.remove('shake'), 300);
 }
 
+function requestNewGame() {
+    // Если игра не активна (ещё не началась) — сразу без диалога
+    if (!isGameActive) { newGame(); return; }
+    document.getElementById('confirm-screen').style.display = 'flex';
+}
+
+function confirmNewGame() {
+    document.getElementById('confirm-screen').style.display = 'none';
+    newGame();
+}
+
+function cancelNewGame() {
+    document.getElementById('confirm-screen').style.display = 'none';
+}
+
+function dismissGameOver() {
+    document.getElementById('game-over-screen').style.display = 'none';
+    isBoardVisible = true;
+    statusText.innerText = 'Партия окончена — начните новую!';
+    statusText.className = '';
+}
+
 function showGameOver(msg, winner) {
     const title = document.getElementById('game-over-title');
     if (winner) {
@@ -1310,6 +1443,7 @@ function showGameOver(msg, winner) {
     document.getElementById('game-over-msg').innerText = msg;
     document.getElementById('game-over-screen').style.display = 'flex';
     isGameActive = false;
+    isBoardVisible = false;
     clearGameState();
 }
 
@@ -1386,6 +1520,14 @@ function playGameOverSound() {
     audio.play();
 }
 
+function openHistory() {
+    document.getElementById('history-screen').classList.add('open');
+}
+
+function closeHistory() {
+    document.getElementById('history-screen').classList.remove('open');
+}
+
 function openHelp() {
     closeSettings();
     document.getElementById('help-screen').classList.add('open');
@@ -1429,12 +1571,21 @@ class ClickSpark {
         document.body.appendChild(this.canvas);
         this.handleResize();
         window.addEventListener('resize', () => this.handleResize());
-        window.addEventListener('mousedown', (e) => this.addSpark(e.clientX, e.clientY));
+        window.addEventListener('mousedown', (e) => {
+            const x = e.clientX * (this.canvas.width  / window.innerWidth);
+            const y = e.clientY * (this.canvas.height / window.innerHeight);
+            this.addSpark(x, y);
+        });
     }
 
     handleResize() {
-        this.canvas.width  = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+        // Ограничиваем ширину размером экрана (не растёт при отдалении),
+        // высоту считаем по соотношению сторон текущего окна — иначе CSS растягивает
+        // canvas с разными коэффициентами по X и Y и искры сплющиваются.
+        const w = Math.min(window.innerWidth, screen.width);
+        const h = Math.round(w * window.innerHeight / window.innerWidth);
+        this.canvas.width  = w;
+        this.canvas.height = h;
     }
 
     addSpark(x, y) {
@@ -1491,3 +1642,6 @@ class ClickSpark {
 }
 
 new ClickSpark();
+
+// Перерисовываем доску при изменении размера экрана (поворот телефона и т.д.)
+window.addEventListener('resize', () => { if (isGameActive) render(); });

@@ -4,6 +4,7 @@
 :root {
     /* Board */
     --cell-size: 60px;
+    --board-border: 50px;
     --board-color: #f0b060;
     --line-color: #3b1c0c73;
     --river-color: #40e0d0;
@@ -48,23 +49,37 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     background: var(--bg-dark);
     font-family: 'Segoe UI', sans-serif;
     color: white;
     margin: 0;
-    padding-top: 10px;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Центральная колонка: заголовок + захваченные + доска */
+#game-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Отступ снизу чтобы не перекрывалось кнопками */
+    padding-bottom: 80px;
+    padding-top: 0;
+    box-sizing: border-box;
 }
 
 #ui-panel {
     text-align: center;
     margin-bottom: 5px;
     z-index: 10;
-    width: 600px;
+    width: calc(var(--cell-size) * 8 + var(--board-border) * 2);
+    max-width: calc(100vw - 16px);
 }
 
 #ui-panel h2 {
-    margin: 0 0 40px 0;
-    font-size: 32px;
+    margin: 0 0 clamp(6px, 1.5vh, 30px) 0;
+    font-size: clamp(18px, 2.8vw, 32px);
 }
 
 #status {
@@ -299,7 +314,7 @@ button.text-btn:active {
     width: calc(var(--cell-size) * 8);
     height: calc(var(--cell-size) * 9);
     background: var(--board-color);
-    border: 40px solid #8b4513;
+    border: var(--board-border) solid #8b4513;
     border-radius: 15px;
     box-shadow: var(--shadow-lg);
 }
@@ -326,8 +341,8 @@ button.text-btn:active {
     align-items: center;
     color: #005b5b;
     font-weight: bold;
-    font-size: 18px;
-    letter-spacing: 4px;
+    font-size: clamp(10px, calc(var(--cell-size) * 0.3), 18px);
+    letter-spacing: clamp(1px, calc(var(--cell-size) * 0.067), 4px);
     border-top: 2px solid var(--line-color);
     border-bottom: 2px solid var(--line-color);
     box-sizing: border-box;
@@ -388,15 +403,15 @@ button.text-btn:active {
    ============================================= */
 .piece {
     position: absolute;
-    width: 52px;
-    height: 52px;
+    width: calc(var(--cell-size) * 0.867);
+    height: calc(var(--cell-size) * 0.867);
     border-radius: 50%;
     background: #444;
     border: 2px solid #222;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 30px;
+    font-size: calc(var(--cell-size) * 0.5);
     font-weight: bold;
     color: white;
     cursor: pointer;
@@ -410,14 +425,15 @@ button.text-btn:active {
 /* Mini pieces (captured tray) */
 .piece.mini {
     position: relative;
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
+    width: calc(var(--cell-size) * 0.533);
+    height: calc(var(--cell-size) * 0.533);
+    font-size: calc(var(--cell-size) * 0.3);
     top: auto;
     left: auto;
     transform: none;
     box-shadow: none;
     border-width: 1px;
+    cursor: default;
 }
 
 .piece.red {
@@ -434,6 +450,7 @@ button.text-btn:active {
 
 .piece.selected {
     background: #ffeb3b;
+    color: #1a1a1a;
     z-index: 15;
     transform: translate(-50%, -60%) scale(1.1);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
@@ -442,8 +459,8 @@ button.text-btn:active {
 /* Move hint dot */
 .move-dot {
     position: absolute;
-    width: 20px;
-    height: 20px;
+    width: calc(var(--cell-size) * 0.333);
+    height: calc(var(--cell-size) * 0.333);
     background: rgba(46, 204, 113, 0.75);
     border: 2px solid white;
     border-radius: 50%;
@@ -457,19 +474,95 @@ button.text-btn:active {
    CAPTURED PIECES TRAY
    ============================================= */
 .captured-container {
-    width: 540px;
-    height: 40px;
+    width: calc(var(--cell-size) * 8 + var(--board-border) * 2);
+    max-width: calc(100vw - 16px);
+    min-height: 35px;
     display: flex;
     gap: 4px;
     justify-content: center;
     align-items: center;
-    margin: 5px 0;
+    margin: 4px 0;
+    flex-wrap: wrap;
 }
 
 
 /* =============================================
    MOVE HISTORY PANEL
    ============================================= */
+
+/* Кнопка открытия истории (top-left, симметрично настройкам) */
+#history-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 100px;
+    background: var(--panel-dark);
+    color: white;
+    font-size: 26px;
+    border: 2px solid var(--bg-dark);
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    display: none;            /* скрыта на широких экранах */
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    transition: background-color var(--transition-fast),
+                transform var(--transition-bounce);
+}
+#history-btn span {
+    display: inline-block;
+    transition: transform var(--transition-bounce);
+}
+#history-btn:hover { background: #45607c; }
+#history-btn:hover span { transform: scale(1.2); }
+
+/* Обёртка — зеркало #settings-screen */
+#history-screen {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0);
+    visibility: hidden;
+    z-index: 1000;
+    pointer-events: none;
+    transition: visibility 0s linear 0.4s;
+}
+
+#history-screen.open {
+    visibility: visible;
+    transition: visibility 0s linear 0s;
+}
+
+/* Кнопка закрытия внутри панели — скрыта на широком экране */
+.history-close-btn {
+    display: none;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    font-size: 30px;
+    cursor: pointer;
+    color: var(--muted);
+    line-height: 1;
+    padding: 0;
+    box-shadow: none;
+    transition: color 0.2s;
+}
+.history-close-btn:hover {
+    color: var(--danger);
+    background: transparent;
+    transform: none;
+    box-shadow: none;
+}
+.history-close-btn:active {
+    transform: scale(0.9) !important;
+    box-shadow: none !important;
+}
+
+/* Панель истории — на широком экране обычная fixed-панель */
 #move-history-panel {
     position: fixed;
     top: 20px;
@@ -481,6 +574,7 @@ button.text-btn:active {
     display: flex;
     flex-direction: column;
     max-height: calc(100vh - 150px);
+    z-index: 300;
 }
 
 #move-history-panel h3 {
@@ -568,7 +662,8 @@ button.text-btn:active {
    MODALS (start / game-over screens)
    ============================================= */
 #start-screen,
-#game-over-screen {
+#game-over-screen,
+#confirm-screen {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.85);
@@ -642,13 +737,14 @@ button.text-btn:active {
     background: transparent;
     border: none;
     color: var(--muted);
-    font-size: 16px;
+    font-size: 14px;
     font-weight: normal;
     cursor: pointer;
     display: block;
     margin: 0 auto 15px auto;
     padding: 0;
     box-shadow: none;
+    text-decoration: underline;
     transition: color 0.2s;
 }
 
@@ -972,4 +1068,236 @@ button.text-btn:active {
     pointer-events: none;
     transform: none !important;
     box-shadow: var(--shadow-sm) !important;
+}
+
+/* Запрет скролла страницы — вся навигация через fixed-элементы */
+html {
+    overflow: hidden;
+}
+
+
+/* =============================================
+   RESPONSIVE: ≥ 1100px — история видна всегда слева
+   ============================================= */
+@media (min-width: 1100px) and (min-height: 700px) {
+    #history-btn { display: none; }
+    .history-close-btn { display: none; }
+
+    /* wrapper видим, но прозрачен и не перехватывает клики */
+    #history-screen {
+        visibility: visible;
+        pointer-events: none;
+        background: transparent;
+        z-index: 50;
+    }
+
+    /* Панель всегда открыта, фиксированная слева */
+    #move-history-panel {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 250px;
+        height: auto;
+        max-height: calc(100vh - 150px);
+        background: transparent;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: none;
+        color: white;
+        pointer-events: auto;
+        display: flex;
+        flex-direction: column;
+        transition: none;
+        z-index: 50;
+    }
+
+    #move-history-panel h3 {
+        font-size: 16px;
+        border-bottom-color: var(--muted);
+        padding-bottom: 5px;
+        margin-bottom: 10px;
+        text-align: left;
+        color: white;
+    }
+
+    #history-list::-webkit-scrollbar-track { background: var(--bg-dark); border-radius: 4px; }
+    #history-list::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; }
+
+    .history-item span.red   { color: var(--piece-red-text); }
+    .history-item span.black { color: var(--piece-black-text); }
+}
+
+
+/* =============================================
+   RESPONSIVE: < 1100px или < 700px высоты
+   — история убрана, доступна по кнопке (drawer)
+   ============================================= */
+@media not all and ((min-width: 1100px) and (min-height: 700px)) {
+
+    /* Показываем кнопку открытия истории */
+    #history-btn {
+        display: flex;
+    }
+
+    /* Показываем кнопку закрытия внутри панели */
+    .history-close-btn {
+        display: block;
+    }
+
+    /* Панель — drawer: спрятана за левым краем, выезжает по .open */
+    #move-history-panel {
+        position: absolute;
+        top: 20px;
+        left: -400px;
+        width: 300px;
+        height: calc(100vh - 40px);
+        max-height: calc(100vh - 40px);
+        background: var(--panel-light);
+        border-radius: 12px;
+        padding: 30px 20px;
+        box-shadow: 5px 0 20px rgba(0, 0, 0, 0.4);
+        color: var(--bg-dark);
+        pointer-events: auto;
+        transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    #history-screen.open {
+        visibility: visible;
+        background: rgba(0, 0, 0, 0.4);
+        pointer-events: auto;
+        transition: none;
+    }
+
+    #history-screen.open #move-history-panel {
+        left: 20px;
+    }
+
+    /* Заголовок как в настройках */
+    #move-history-panel h3 {
+        font-size: 20px;
+        border-bottom: 2px solid #bdc3c7;
+        padding-bottom: 15px;
+        margin-bottom: 15px;
+        text-align: center;
+        color: var(--bg-dark);
+    }
+
+    /* Скроллбар под светлый фон */
+    #history-list::-webkit-scrollbar-track { background: #e8ecee; }
+    #history-list::-webkit-scrollbar-thumb { background: #bdc3c7; }
+
+    /* Текст истории под светлый фон */
+    .history-item span.red   { color: var(--red); }
+    .history-item span.black { color: #333; }
+}
+
+
+/* =============================================
+   RESPONSIVE: компактный режим (мобильный / landscape)
+   ============================================= */
+
+/* Масштаб доски под ширину экрана на телефонах */
+@media (max-width: 619px) {
+    :root {
+        /* 9.5vw * 8 клеток + 7.2vw * 2 бордюра = 90.4vw — всегда вмещается */
+        --cell-size: clamp(30px, 9.5vw, 60px);
+        --board-border: clamp(20px, 7.2vw, 50px);
+    }
+}
+
+@media (max-width: 619px), (max-height: 499px) {
+
+    #game-area {
+        padding-bottom: 60px;
+    }
+
+    #ui-panel {
+        margin-bottom: 2px;
+    }
+
+    /* Настройки справа */
+    #settings-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 22px;
+        top: 10px;
+        right: 10px;
+    }
+
+    /* История слева — компактнее */
+    #history-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 22px;
+        top: 10px;
+        left: 10px;
+    }
+
+    /* Звук */
+    #sound-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
+        bottom: 58px;
+        right: 10px;
+    }
+
+    /* Нижние кнопки */
+    .bbuttons {
+        bottom: 8px;
+    }
+
+    #prev-move-btn,
+    #new-game-btn,
+    #help-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .btn-slot.left  { padding-left: 8px; }
+    .btn-slot.right { padding-right: 8px; }
+
+    /* Модальные окна */
+    .modal {
+        padding: 22px 16px;
+        min-width: 0;
+        width: calc(100vw - 36px);
+        max-width: 360px;
+    }
+
+    .btn-choice {
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+
+    /* Настройки панель */
+    .settings-panel {
+        width: calc(100vw - 20px);
+        right: -110vw;
+        top: 10px;
+        padding: 20px 14px;
+    }
+    #settings-screen.open .settings-panel {
+        right: 10px;
+    }
+
+    /* Справка */
+    #help-screen {
+        width: 100vw;
+        right: -110vw;
+    }
+    #help-screen.open {
+        right: 0;
+    }
+}
+
+/* Малая высота (landscape phone) — скрываем захваченных */
+@media (max-height: 420px) {
+    #captured-top,
+    #captured-bottom {
+        display: none;
+    }
+    #game-area {
+        padding-bottom: 50px;
+    }
 }

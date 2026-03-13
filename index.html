@@ -19,12 +19,12 @@
                 <h1>Xiangqi Master</h1>
                 <p id="resume-desc" style="color: #555; margin-bottom: 5px;"></p>
                 <div class="color-btns" style="flex-direction: column; align-items: stretch; gap: 12px;">
-                    <button class="btn-choice btn-green" onclick="resumeGame()">Продолжить партию</button>
-                    <button class="btn-choice btn-black" style="align-self: center;" onclick="showModeSelection()">Начать заново</button>
+                    <button class="btn-choice btn-green" onclick="resumeGame()">▶ Продолжить партию</button>
+                    <button class="btn-choice btn-black" style="align-self: center;" onclick="showModeSelection()">✕ Начать заново</button>
                 </div>
             </div>
 
-            <div id="mode-selection" style="display: none;">
+            <div id="mode-selection">
                 <h1>Xiangqi Master</h1>
                 <p>Выберите режим игры</p>
                 <div class="color-btns">
@@ -34,7 +34,7 @@
             </div>
 
             <div id="solo-setup" style="display: none;">
-                <button class="back-link" onclick="showModeSelection()">Назад</button>
+                <button class="back-link" onclick="showModeSelection()">← Назад</button>
                 <h1>Настройка ИИ</h1>
 
                 <div class="setup-section">
@@ -59,34 +59,47 @@
         <div class="modal">
             <h1 id="game-over-title">ИГРА ОКОНЧЕНА</h1>
             <p id="game-over-msg"></p>
-            <div class="color-btns">
+            <div class="color-btns" style="flex-direction: column; align-items: stretch; gap: 12px;">
                 <button class="btn-choice btn-green" onclick="newGame()">Новая партия</button>
+                <button class="btn-choice btn-black" style="align-self: center;" onclick="dismissGameOver()">Посмотреть на поле</button>
             </div>
         </div>
     </div>
 
-    <div id="ui-panel">
-        <h2>Сянци</h2>
-        <div id="controls">
+    <!-- Диалог подтверждения новой партии -->
+    <div id="confirm-screen" style="display: none;">
+        <div class="modal">
+            <h2>Начать заново?</h2>
+            <p style="color: #555;">Текущая партия будет сброшена.</p>
+            <div class="color-btns">
+                <button class="btn-choice btn-green" onclick="confirmNewGame()">Да, начать</button>
+                <button class="btn-choice btn-black" onclick="cancelNewGame()">Отмена</button>
+            </div>
         </div>
-        <div id="status">Запуск игры...</div>
     </div>
 
-    <div id="move-history-panel">
-        <h3>История ходов</h3>
-        <div id="history-header"></div>
-        <div id="history-list"></div>
-        <div id="history-footer"></div>
+
+    <div id="history-screen" onclick="if(event.target===this)closeHistory()">
+        <div id="move-history-panel">
+            <button class="history-close-btn" onclick="closeHistory()">×</button>
+            <h3>История ходов</h3>
+            <div id="history-header"></div>
+            <div id="history-list"></div>
+            <div id="history-footer"></div>
+        </div>
     </div>
+
 <div class="bbuttons">
     <div class="btn-slot left">
-        <button id="prev-move-btn" onmousedown="showPreviousMove()" onmouseup="hidePreviousMove()" onmouseleave="hidePreviousMove()">
+        <button id="prev-move-btn"
+            onmousedown="showPreviousMove()" onmouseup="hidePreviousMove()" onmouseleave="hidePreviousMove()"
+            ontouchstart="event.preventDefault();showPreviousMove()" ontouchend="hidePreviousMove()" ontouchcancel="hidePreviousMove()">
             Прошлый ход
         </button>
     </div>
     
     <div class="btn-slot center">
-        <button id="new-game-btn" onclick="newGame()">Новая партия</button>
+        <button id="new-game-btn" onclick="requestNewGame()">Новая партия</button>
     </div>
     
     <div class="btn-slot right">
@@ -94,20 +107,29 @@
     </div>
 </div>
 
-    <div id="captured-top" class="captured-container"></div>
+    <div id="game-area">
+        <div id="ui-panel">
+            <h2>Сянци</h2>
+            <div id="controls"></div>
+            <div id="status"></div>
+        </div>
 
-    <div class="board" id="board">
-        <div class="grid-layer"></div>
-        <div class="river">楚河 CHU HE — 漢界 HAN JIE</div>
-        <div class="palace top"></div>
-        <div class="palace bottom"></div>
-        <div id="pieces-layer"></div>
-        <div id="ai-thinking">Противник думает...</div>
+        <div id="captured-top" class="captured-container"></div>
+
+        <div class="board" id="board">
+            <div class="grid-layer"></div>
+            <div class="river">楚河 CHU HE — 漢界 HAN JIE</div>
+            <div class="palace top"></div>
+            <div class="palace bottom"></div>
+            <div id="pieces-layer"></div>
+            <div id="ai-thinking">Противник думает...</div>
+        </div>
+
+        <div id="captured-bottom" class="captured-container"></div>
     </div>
 
-    <div id="captured-bottom" class="captured-container"></div>
-
     <button id="settings-btn" onclick="openSettings()"><span>⚙️</span></button>
+    <button id="history-btn" onclick="openHistory()"><span>📜</span></button>
     <button id="sound-btn" onclick="playYooSound()"><span>🔊</span></button>
 
     <div id="settings-screen">
