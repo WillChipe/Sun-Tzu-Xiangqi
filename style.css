@@ -800,6 +800,7 @@ button.text-btn:active {
     background: var(--panel-light);
     border-radius: 12px;
     padding: 30px 20px;
+    box-sizing: border-box;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.4);
     color: var(--bg-dark);
     text-align: left;
@@ -1273,9 +1274,13 @@ html {
     /* Настройки панель */
     .settings-panel {
         width: calc(100vw - 20px);
+        max-width: 400px;
+        max-height: calc(100vh - 20px);
+        overflow-y: auto;
         right: -110vw;
         top: 10px;
         padding: 20px 14px;
+        box-sizing: border-box;
     }
     #settings-screen.open .settings-panel {
         right: 10px;
