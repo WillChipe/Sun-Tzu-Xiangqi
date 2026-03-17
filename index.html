@@ -19,34 +19,105 @@
                 <h1>Xiangqi Master</h1>
                 <p id="resume-desc" style="color: #555; margin-bottom: 5px;"></p>
                 <div class="color-btns" style="flex-direction: column; align-items: stretch; gap: 12px;">
-                    <button class="btn-choice btn-green" onclick="resumeGame()">▶ Продолжить партию</button>
-                    <button class="btn-choice btn-black" style="align-self: center;" onclick="showModeSelection()">✕ Начать заново</button>
+                    <button class="btn-choice btn-green" onclick="resumeGame()" data-i18n="resume_continue">Продолжить партию</button>
+                    <button class="btn-choice btn-black" style="align-self: center;"
+                        onclick="showModeSelection()" data-i18n="resume_restart">Начать заново</button>
                 </div>
             </div>
 
             <div id="mode-selection">
                 <h1>Xiangqi Master</h1>
-                <p>Выберите режим игры</p>
+                <p data-i18n="select_mode">Выберите режим игры</p>
                 <div class="color-btns">
-                    <button class="btn-choice btn-black" onclick="selectMode('one')">Один игрок</button>
-                    <button class="btn-choice btn-black" onclick="selectMode('two')">Два игрока</button>
+                    <button class="btn-choice btn-black" onclick="selectMode('one')" data-i18n="mode_solo">Один игрок</button>
+                    <button class="btn-choice btn-black" onclick="selectMode('two')" data-i18n="mode_two">Два игрока</button>
+                </div>
+            </div>
+
+            <div id="two-player-menu" style="display: none;">
+                <button class="back-link" onclick="showModeSelection()" data-i18n="back">← Назад</button>
+                <h1 data-i18n="two_players">Два игрока</h1>
+                <p data-i18n="select_way">Выберите способ игры</p>
+                <div class="color-btns" style="flex-direction: column; align-items: stretch; gap: 12px;">
+                    <button class="btn-choice btn-green" onclick="selectTwoPlayerMode('local')" data-i18n="local_screen">За одним экраном</button>
+                    <button class="btn-choice btn-network" onclick="selectTwoPlayerMode('network')" data-i18n="network_game">Игра по сети</button>
+                </div>
+            </div>
+
+            <div id="network-setup" style="display: none;">
+                <button class="back-link" onclick="showTwoPlayerMenu()" data-i18n="back">← Назад</button>
+                <h1 data-i18n="network_title">Игра по сети</h1>
+                <div id="network-status" class="net-status waiting" data-i18n="net_ready">Готово</div>
+
+                <div class="color-btns"
+                    style="gap:12px; flex-direction:column; align-items:stretch; margin-bottom:16px;">
+                    <button class="btn-choice btn-green" onclick="createRoom()" data-i18n="create_host">Создать игру (хост)</button>
+                </div>
+
+                <!-- Хост: шаг 1 — передать оффер -->
+                <div id="step-host-1" style="display:none;">
+                    <div class="net-section">
+                        <label><strong data-i18n="host_step1_label">1. Скопируйте код и отправьте сопернику:</strong></label>
+                        <div class="net-id-row" style="margin-top:8px;">
+                            <textarea id="offer-code" rows="3" readonly
+                                style="flex:1;resize:none;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;border:1px solid #ddd;background:#f8f9fa;"></textarea>
+                            <button class="btn-copy" onclick="_copyField('offer-code')" title="Копировать">📋</button>
+                        </div>
+                    </div>
+                    <div class="net-section" style="margin-top:12px;">
+                        <label><strong data-i18n="host_step2_label">2. Вставьте код ответа от соперника:</strong></label>
+                        <div class="net-id-row" style="margin-top:8px;">
+                            <textarea id="answer-input" rows="3" data-i18n-placeholder="answer_placeholder"
+                                placeholder="Вставьте код ответа…"
+                                style="flex:1;resize:none;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;border:1px solid #ddd;"></textarea>
+                            <button class="btn-choice btn-green btn-connect"
+                                onclick="hostSetAnswer()" data-i18n="connect_btn">Подключить</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Гость -->
+                <div id="step-guest-1" style="display:block;">
+                    <div class="net-section">
+                        <label><strong data-i18n="guest_step1_label">Или вставьте код хоста и получите ответ:</strong></label>
+                        <div class="net-id-row" style="margin-top:8px;">
+                            <textarea id="guest-offer-input" rows="3" data-i18n-placeholder="host_offer_placeholder"
+                                placeholder="Вставьте код хоста…"
+                                style="flex:1;resize:none;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;border:1px solid #ddd;"></textarea>
+                            <button class="btn-choice btn-green btn-connect" onclick="guestGetAnswer()" data-i18n="get_answer_btn">Получить ответ</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Гость: шаг 2 — передать ответ -->
+                <div id="step-guest-2" style="display:none;">
+                    <div class="net-section"
+                        style="margin-top:12px; background:rgba(39,174,96,0.08); border:1px solid #27ae60; border-radius:8px; padding:12px;">
+                        <label><strong data-i18n="guest_ready">✅ Готово! Скопируйте код ответа и отправьте его хосту:</strong></label>
+                        <div class="net-id-row" style="margin-top:8px;">
+                            <textarea id="answer-code" rows="3" readonly
+                                style="flex:1;resize:none;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;border:1px solid #ddd;background:#f8f9fa;"></textarea>
+                            <button class="btn-copy" onclick="_copyField('answer-code')" title="Копировать">📋</button>
+                        </div>
+                        <p style="font-size:12px;color:#555;margin:8px 0 0;" data-i18n="guest_note">После того как хост вставит этот код — игра начнётся автоматически.</p>
+                    </div>
                 </div>
             </div>
 
             <div id="solo-setup" style="display: none;">
-                <button class="back-link" onclick="showModeSelection()">← Назад</button>
-                <h1>Настройка ИИ</h1>
+                <button class="back-link" onclick="showModeSelection()" data-i18n="back">← Назад</button>
+                <h1 data-i18n="ai_setup">Настройка ИИ</h1>
 
                 <div class="setup-section">
-                    <p>Сложность: <span id="setup-diff-val">1 - Новичок</span></p>
+                    <p><span data-i18n="difficulty_label">Сложность:</span> <span id="setup-diff-val">1 - Новичок</span></p>
                     <input type="range" id="setup-diff-slider" min="1" max="5" value="1"
                         oninput="updateDiffLabel(this.value)" style="width: 100%; margin: 15px 0 25px;">
                 </div>
 
-                <p>Ваша сторона:</p>
+                <p data-i18n="your_side">Ваша сторона:</p>
                 <div class="color-btns">
-                    <button class="btn-choice btn-red" onclick="startGame('red')">Красные</button>
-                    <button class="btn-choice btn-black" onclick="startGame('black')">Черные</button>
+                    <button class="btn-choice btn-red" onclick="startGame('red')" data-i18n="red_side">Красные</button>
+                    <button class="btn-choice btn-black" onclick="startGame('black')" data-i18n="black_side">Черные</button>
                 </div>
                 <div class="random-btn-container">
                     <button class="btn-choice btn-random" onclick="startGame('random')">🎲</button>
@@ -60,8 +131,8 @@
             <h1 id="game-over-title">ИГРА ОКОНЧЕНА</h1>
             <p id="game-over-msg"></p>
             <div class="color-btns" style="flex-direction: column; align-items: stretch; gap: 12px;">
-                <button class="btn-choice btn-green" onclick="newGame()">Новая партия</button>
-                <button class="btn-choice btn-black" style="align-self: center;" onclick="dismissGameOver()">Посмотреть на поле</button>
+                <button class="btn-choice btn-green" onclick="newGame()" data-i18n="gameover_new">Новая партия</button>
+                <button class="btn-choice btn-black" style="align-self: center;" onclick="dismissGameOver()" data-i18n="gameover_view">Посмотреть на поле</button>
             </div>
         </div>
     </div>
@@ -69,11 +140,11 @@
     <!-- Диалог подтверждения новой партии -->
     <div id="confirm-screen" style="display: none;">
         <div class="modal">
-            <h2>Начать заново?</h2>
-            <p style="color: #555;">Текущая партия будет сброшена.</p>
+            <h2 data-i18n="confirm_title">Начать заново?</h2>
+            <p style="color: #555;" data-i18n="confirm_msg">Текущая партия будет сброшена.</p>
             <div class="color-btns">
-                <button class="btn-choice btn-green" onclick="confirmNewGame()">Да, начать</button>
-                <button class="btn-choice btn-black" onclick="cancelNewGame()">Отмена</button>
+                <button class="btn-choice btn-green" onclick="confirmNewGame()" data-i18n="confirm_yes">Да, начать</button>
+                <button class="btn-choice btn-black" onclick="cancelNewGame()" data-i18n="confirm_cancel">Отмена</button>
             </div>
         </div>
     </div>
@@ -82,34 +153,39 @@
     <div id="history-screen" onclick="if(event.target===this)closeHistory()">
         <div id="move-history-panel">
             <button class="history-close-btn" onclick="closeHistory()">×</button>
-            <h3>История ходов</h3>
+            <h3 data-i18n="history_title">История ходов</h3>
             <div id="history-header"></div>
             <div id="history-list"></div>
             <div id="history-footer"></div>
         </div>
     </div>
 
-<div class="bbuttons">
-    <div class="btn-slot left">
-        <button id="prev-move-btn"
-            onmousedown="showPreviousMove()" onmouseup="hidePreviousMove()" onmouseleave="hidePreviousMove()"
-            ontouchstart="event.preventDefault();showPreviousMove()" ontouchend="hidePreviousMove()" ontouchcancel="hidePreviousMove()">
-            Прошлый ход
-        </button>
+    <div class="bbuttons">
+        <div class="btn-slot left">
+            <button id="prev-move-btn" onmousedown="showPreviousMove()" onmouseup="hidePreviousMove()"
+                onmouseleave="hidePreviousMove()" ontouchstart="event.preventDefault();showPreviousMove()"
+                ontouchend="hidePreviousMove()" ontouchcancel="hidePreviousMove()"
+                data-i18n="prev_move">
+                Прошлый ход
+            </button>
+        </div>
+
+        <div class="btn-slot center">
+            <button id="new-game-btn" onclick="requestNewGame()" data-i18n="new_game_btn">Новая партия</button>
+        </div>
+
+        <div class="btn-slot right">
+            <button id="sound-btn" onclick="playYooSound()"><span>🔊</span></button>
+            <button id="chat-btn" onclick="openChat()"><span data-i18n="chat_btn">Чат</span><span id="chat-badge" class="chat-badge"></span></button>
+        </div>
     </div>
-    
-    <div class="btn-slot center">
-        <button id="new-game-btn" onclick="requestNewGame()">Новая партия</button>
-    </div>
-    
-    <div class="btn-slot right">
-        <button id="help-btn" onclick="openHelp()">Справка</button>
-    </div>
-</div>
 
     <div id="game-area">
         <div id="ui-panel">
-            <h2>Сянци</h2>
+            <h2 data-i18n="game_title">Сянци</h2>
+            <div id="player-role-indicator"
+                style="font-size: 14px; color: var(--muted); margin-top: -5px; margin-bottom: 5px; display: none;">
+            </div>
             <div id="controls"></div>
             <div id="status"></div>
         </div>
@@ -122,48 +198,60 @@
             <div class="palace top"></div>
             <div class="palace bottom"></div>
             <div id="pieces-layer"></div>
-            <div id="ai-thinking">Противник думает...</div>
+            <div id="ai-thinking" data-i18n="ai_thinking">Противник думает...</div>
         </div>
 
         <div id="captured-bottom" class="captured-container"></div>
     </div>
 
     <button id="settings-btn" onclick="openSettings()"><span>⚙️</span></button>
+    <button id="help-top-btn" onclick="openHelp()"><span>❓</span></button>
     <button id="history-btn" onclick="openHistory()"><span>📜</span></button>
-    <button id="sound-btn" onclick="playYooSound()"><span>🔊</span></button>
 
-    <div id="settings-screen">
+    <div id="settings-screen" onclick="if(event.target===this)closeSettings()">
         <div class="settings-panel">
             <button class="close-btn" onclick="closeSettings()">×</button>
-            <h2>Настройки</h2>
+            <h2 data-i18n="settings_title">Настройки</h2>
             <div class="settings-content">
                 <div class="setting-item">
-                    <label for="bg-upload"><strong>Свой фон (PNG, JPG, GIF):</strong></label>
-                    <div class="upload-row">
-                        <input type="file" id="bg-upload" accept=".png, .jpg, .jpeg, .gif"
-                            onchange="handleBackgroundUpload(event)">
-                        <button class="text-btn" onclick="clearBackground()">Удалить</button>
+                    <label><strong data-i18n="lang_label">Язык / Language:</strong></label>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button id="lang-btn-ru" style="flex: 1; padding: 10px; display: flex; justify-content: center; align-items: center; background: transparent; border: none; box-shadow: none; cursor: pointer; border-radius: 8px; transition: transform 0.15s;" onclick="setLanguage('ru')">
+                            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f1f7-1f1fa.svg" alt="RU" class="lang-flag" style="width:36px;height:36px;filter:drop-shadow(1px 1px 0 rgba(0,0,0,0.9)) drop-shadow(-1px -1px 0 rgba(0,0,0,0.9)) drop-shadow(1px -1px 0 rgba(0,0,0,0.9)) drop-shadow(-1px 1px 0 rgba(0,0,0,0.9));">
+                        </button>
+                        <button id="lang-btn-en" style="flex: 1; padding: 10px; display: flex; justify-content: center; align-items: center; background: transparent; border: none; box-shadow: none; cursor: pointer; border-radius: 8px; transition: transform 0.15s;" onclick="setLanguage('en')">
+                            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f1fa-1f1f8.svg" alt="US" class="lang-flag" style="width:36px;height:36px;filter:drop-shadow(1px 1px 0 rgba(0,0,0,0.9)) drop-shadow(-1px -1px 0 rgba(0,0,0,0.9)) drop-shadow(1px -1px 0 rgba(0,0,0,0.9)) drop-shadow(-1px 1px 0 rgba(0,0,0,0.9));">
+                        </button>
                     </div>
                 </div>
                 <div class="setting-item">
-                    <label for="volume-slider"><strong>Громкость: <span id="volume-val">100%</span></strong></label>
+                    <label for="bg-upload"><strong data-i18n="bg_label">Свой фон (PNG, JPG, GIF):</strong></label>
+                    <div class="upload-row">
+                        <input type="file" id="bg-upload" accept=".png, .jpg, .jpeg, .gif"
+                            onchange="handleBackgroundUpload(event)">
+                        <button class="text-btn" onclick="clearBackground()" data-i18n="bg_remove">Удалить</button>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label for="volume-slider"><strong><span data-i18n="volume_label">Громкость:</span> <span id="volume-val">100%</span></strong></label>
                     <input type="range" id="volume-slider" min="0" max="100" value="100"
                         oninput="updateVolume(this.value)" style="width: 100%; margin-top: 10px;">
                 </div>
                 <div class="setting-item">
-                    <label><strong>Стиль фигур:</strong></label>
+                    <label><strong data-i18n="style_label">Стиль фигур:</strong></label>
                     <div class="style-options">
                         <label class="style-opt">
                             <input type="radio" name="piece-style" value="icons" onchange="changeStyle(this.value)">
-                            <span class="radio-custom"></span> Эмодзи 👑
+                            <span class="radio-custom"></span> <span data-i18n="style_icons">Эмодзи 👑</span>
                         </label>
                         <label class="style-opt">
                             <input type="radio" name="piece-style" value="kanji" onchange="changeStyle(this.value)">
-                            <span class="radio-custom"></span> Иероглифы 帥
+                            <span class="radio-custom"></span> <span data-i18n="style_kanji">Иероглифы 帥</span>
                         </label>
                         <label class="style-opt">
                             <input type="radio" name="piece-style" value="euro" onchange="changeStyle(this.value)">
-                            <span class="radio-custom"></span> Буквы K
+                            <span class="radio-custom"></span> <span data-i18n="style_euro">Буквы K</span>
+                        </label>
                     </div>
                 </div>
                 <!-- Balatro Toggle + Theme Picker -->
@@ -171,18 +259,19 @@
                     <label class="style-opt" style="border: none; background: transparent; padding: 0;">
                         <input type="checkbox" id="balatro-toggle" checked onchange="toggleBalatro(this.checked)">
                         <span class="radio-custom" style="border-radius: 4px;"></span>
-                        <strong style="margin-left: 10px;">Анимированный фон</strong>
+                        <strong style="margin-left: 10px;" data-i18n="animated_bg">Анимированный фон</strong>
                     </label>
-                    <p style="font-size: 12px; color: #7f8c8d; margin-top: 5px; margin-left: 32px;">Отключите, если игра подтормаживает</p>
+                    <p style="font-size: 12px; color: #7f8c8d; margin-top: 5px; margin-left: 32px;" data-i18n="animated_bg_hint">Отключите, если игра подтормаживает</p>
 
-                    <label style="font-size: 13px; font-weight: bold; color: #555; margin-top: 10px; display: block;">Тема фона:</label>
+                    <label
+                        style="font-size: 13px; font-weight: bold; color: #555; margin-top: 10px; display: block;" data-i18n="bg_theme_label">Тема фона:</label>
                     <div class="bg-theme-grid">
-                        <button class="bg-theme-btn" onclick="applyBgTheme(0)">🔵 Синий</button>
-                        <button class="bg-theme-btn" onclick="applyBgTheme(1)">🟣 Пурпурный</button>
-                        <button class="bg-theme-btn" onclick="applyBgTheme(2)">🟢 Зелёный</button>
-                        <button class="bg-theme-btn" onclick="applyBgTheme(3)">🔴 Красный</button>
-                        <button class="bg-theme-btn" onclick="applyBgTheme(4)">⚫ Чёрный</button>
-                        <button class="bg-theme-btn" onclick="applyBgTheme(5)">🟡 Золотой</button>
+                        <button class="bg-theme-btn" onclick="applyBgTheme(0)" data-i18n="theme_blue">🔵 Синий</button>
+                        <button class="bg-theme-btn" onclick="applyBgTheme(1)" data-i18n="theme_purple">🟣 Пурпурный</button>
+                        <button class="bg-theme-btn" onclick="applyBgTheme(2)" data-i18n="theme_green">🟢 Зелёный</button>
+                        <button class="bg-theme-btn" onclick="applyBgTheme(3)" data-i18n="theme_red">🔴 Красный</button>
+                        <button class="bg-theme-btn" onclick="applyBgTheme(4)" data-i18n="theme_black">⚫ Чёрный</button>
+                        <button class="bg-theme-btn" onclick="applyBgTheme(5)" data-i18n="theme_gold">🟡 Золотой</button>
                     </div>
                 </div>
             </div>
@@ -191,48 +280,59 @@
 
     <div id="help-screen">
         <div class="help-panel">
-            <h2>Правила Сянци</h2>
-            <div class="help-text">
-                <p><strong>Цель:</strong> Поставить мат генералу <span class="help-sym" data-p="K">👑</span> противника.
-                <p><strong>Мат</strong> — это ситуация, когда генерал находится под атакой (шах) и нет ни одного
+            <h2 data-i18n="help_title">Правила Сянци</h2>
+            <div class="help-text" id="help-rules-content">
+                <p><strong data-i18n="help_goal_title">Цель:</strong> <span data-i18n="help_goal_text">Поставить мат генералу</span> <span class="help-sym" data-p="K">👑</span> <span data-i18n="help_goal_text2">противника.</span>
+                <p data-i18n="help_checkmate"><strong>Мат</strong> — это ситуация, когда генерал находится под атакой (шах) и нет ни одного
                     легального хода, чтобы её избежать.
                     Также победой считается пат</p>
-                <p><strong>Пат</strong> — ситуация, когда у игрока нет ни одного легального хода, даже если генерал не
+                <p data-i18n="help_stalemate"><strong>Пат</strong> — ситуация, когда у игрока нет ни одного легального хода, даже если генерал не
                     находится под шахом.</p>
-                <div style="background: rgba(0,0,0,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                <div style="background: rgba(0,0,0,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;" data-i18n="help_flying_general">
                     Генералы (帥/將) <span class="help-sym" data-p="K">👑</span> не
                     могут "видеть" друг друга на одной линии. Между
                     ними должна быть хотя бы одна любая фигура.
-
                 </div>
-                <p><strong>Генерал (帥/將) <span class="help-sym" data-p="K">👑</span>:</strong> Ходит на 1 клетку по
+                <p><strong data-i18n="help_king_title">Генерал (帥/將) <span class="help-sym" data-p="K">👑</span>:</strong> <span data-i18n="help_king_text">Ходит на 1 клетку по
                     вертикали/горизонтали внутри своего дворца (зона 3х3). Два генерала не могут "смотреть" друг на
-                    друга по открытой вертикали без других фигур между ними.</p>
-                <p><strong>Советник (仕/士) <span class="help-sym" data-p="A">🛡️</span>:</strong> Ходит на 1 клетку по
-                    диагонали, тоже не может покидать дворец.</p>
-                <p><strong>Слон (相/象) <span class="help-sym" data-p="B">🐘</span>:</strong> Ходит ровно на 2 клетки по
+                    друга по открытой вертикали без других фигур между ними.</span></p>
+                <p><strong data-i18n="help_advisor_title">Советник (仕/士) <span class="help-sym" data-p="A">🛡️</span>:</strong> <span data-i18n="help_advisor_text">Ходит на 1 клетку по
+                    диагонали, тоже не может покидать дворец.</span></p>
+                <p><strong data-i18n="help_elephant_title">Слон (相/象) <span class="help-sym" data-p="B">🐘</span>:</strong> <span data-i18n="help_elephant_text">Ходит ровно на 2 клетки по
                     диагонали. Если промежуточная точка занята (через 1 шаг), слон блокирован. Слоны не могут переходить
-                    через реку (центр доски).</p>
-                <p><strong>Конь (傌/馬) <span class="help-sym" data-p="N">🐴</span>:</strong> Ходит на 1 клетку по прямой
+                    через реку (центр доски).</span></p>
+                <p><strong data-i18n="help_horse_title">Конь (傌/馬) <span class="help-sym" data-p="N">🐴</span>:</strong> <span data-i18n="help_horse_text">Ходит на 1 клетку по прямой
                     и 1 по
                     диагонали. В отличие от обычных шахмат, если соседняя клетка по прямому направлению занята, прыжок
-                    блокируется.</p>
-                <p><strong>Ладья (俥/車) <span class="help-sym" data-p="R">🏰</span>:</strong> Ходит на любое число пустых
-                    клеток по вертикали или горизонтали.</p>
-                <p><strong>Пушка (炮/砲) <span class="help-sym" data-p="C">💣</span>:</strong> Ходит как ладья, но берёт
+                    блокируется.</span></p>
+                <p><strong data-i18n="help_rook_title">Ладья (俥/車) <span class="help-sym" data-p="R">🏰</span>:</strong> <span data-i18n="help_rook_text">Ходит на любое число пустых
+                    клеток по вертикали или горизонтали.</span></p>
+                <p><strong data-i18n="help_cannon_title">Пушка (炮/砲) <span class="help-sym" data-p="C">💣</span>:</strong> <span data-i18n="help_cannon_text">Ходит как ладья, но берёт
                     фигуру
                     противника только перепрыгивая ровно через одну любую другую фигуру (свою или чужую, образующую
-                    "экран").</p>
-                <p><strong>Пешка (兵/卒) <span class="help-sym" data-p="P">💂</span>:</strong> До перехода через реку
+                    "экран").</span></p>
+                <p><strong data-i18n="help_pawn_title">Пешка (兵/卒) <span class="help-sym" data-p="P">💂</span>:</strong> <span data-i18n="help_pawn_text">До перехода через реку
                     ходит
                     только на 1 клетку вперёд. После перехода реки может ходить и бить на 1 клетку вперёд, влево или
-                    вправо. Пешка не может ходить назад.</p>
+                    вправо. Пешка не может ходить назад.</span></p>
             </div>
-            <button class="btn-choice btn-black" onclick="closeHelp()">Понятно, закрыть</button>
+            <button class="btn-choice btn-black" onclick="closeHelp()" data-i18n="help_close">Понятно, закрыть</button>
         </div>
     </div>
 
 
+
+    <!-- Чат-панель -->
+    <div id="chat-screen">
+        <button class="chat-close-btn" onclick="closeChat()">×</button>
+        <div id="chat-messages"></div>
+        <div class="chat-input-row">
+            <input id="chat-input" type="text" data-i18n-placeholder="chat_placeholder"
+                placeholder="Напишите сообщение…"
+                onkeydown="if(event.key==='Enter')sendChatMessage()">
+            <button id="chat-send-btn" onclick="sendChatMessage()">➤</button>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
