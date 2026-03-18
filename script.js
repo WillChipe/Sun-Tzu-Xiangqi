@@ -49,7 +49,7 @@ const TRANSLATIONS = {
         select_mode: 'Выберите режим игры',
         mode_solo: 'Один игрок',
         mode_two: 'Два игрока',
-        back: '← Назад',
+        back: 'Назад',
         two_players: 'Два игрока',
         select_way: 'Выберите способ игры',
         local_screen: 'За одним экраном',
@@ -86,7 +86,7 @@ const TRANSLATIONS = {
         confirm_yes: 'Да, начать',
         confirm_cancel: 'Отмена',
         history_title: 'История ходов',
-        history_return: '▶ Вернуться к игре',
+        history_return: 'Вернуться к игре',
         prev_move: 'Прошлый ход',
         new_game_btn: 'Новая партия',
         chat_btn: 'Чат',
@@ -1153,7 +1153,7 @@ function render() {
     statusText.className = displayTurn === 'red' ? 'red-turn' : 'black-turn';
 
     const roleEl = document.getElementById('player-role-indicator');
-    if (roleEl && !isShowingPrevious && !isViewingHistory) {
+    if (roleEl && !isViewingHistory) {
         if (gameMode === 'hotseat') {
             roleEl.innerText = t('role_hotseat');
             roleEl.style.display = 'block';
