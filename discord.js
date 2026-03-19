@@ -1,18 +1,19 @@
-// ═══════════════════════════════════════════════════════════════
-// DISCORD EMBEDDED APP SDK
-// Подключается через esm.sh — не требует сборщика
-// ═══════════════════════════════════════════════════════════════
-
 import { DiscordSDK } from "https://esm.sh/@discord/embedded-app-sdk";
 
-// Вставьте сюда ваш Discord Client ID из Discord Developer Portal
 const CLIENT_ID = "1281757977929453703";
 
-export const discordSdk = new DiscordSDK(CLIENT_ID);
+// Запускаем SDK только если открыто внутри Discord (есть frame_id в URL)
+const params = new URLSearchParams(window.location.search);
+const isInsideDiscord = params.has("frame_id");
 
-async function setup() {
-    await discordSdk.ready();
-    console.log("Discord SDK is ready");
-}
+if (isInsideDiscord) {
+    const discordSdk = new DiscordSDK(CLIENT_ID);
 
-setup();
+    try {
+        await discordSdk.ready();
+        console.log("Discord SDK is ready");
+    } catch (e) {
+        console.error("Discord SDK error:", e);
+    }
+} else {
+    console.log("Not inside Discord, SDK skipped");
